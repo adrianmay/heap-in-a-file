@@ -87,12 +87,14 @@ static void * myMoreCore(int s) {
 	return ret; //Yes it should be the old end+1
 }
 
+// Extend the file
 static int getMoreCore(int size) {
 	int tograb = ROUNDUP_MORECORE(size);
 	myMoreCore(tograb);
 	pallocState()->top->sizeAndFlags += tograb;
 }
 
+// Nothing in the bin so carve off from top chunk, growing file if necessary.
 static Chunk * fromTop(int size) {
 	Chunk * ret = pallocState()->top;
 	int topprevinuse = ret->sizeAndFlags & 1;
@@ -105,6 +107,7 @@ static Chunk * fromTop(int size) {
 	ret->sizeAndFlags = size|topprevinuse;
 }
 
+// malloc
 void * palloc(int size) {
 	if (size > MAXCHUNK) return 0;
 	Chunk ** bin = pallocState()->bins + binIndexForTotSize(roundedSizeIncHeader(size));
@@ -113,6 +116,7 @@ void * palloc(int size) {
 	return ((void*)pCh) + HEADER_NUDGE;
 }
 
+// free
 void pree(void * p) {
 	Chunk * pCh = p-HEADER_NUDGE;
 	TRACE( ("Freeing chunk at %p\n", pCh) )
@@ -133,7 +137,10 @@ int openHeap() {
 	if (exists) heapsize=st.st_size;
 	fdheap = open(MAPFILE, O_RDWR | O_CREAT, S_IRWXU);
 	if (fdheap == -1) { printf("Can't open heap file %s\n", MAPFILE); die(); }
-	if (!exists) { heapsize=INIT_HEAP_SIZE; ftruncate(fdheap, heapsize); }
+	if (!exists) { 
+		heapsize=INIT_HEAP_SIZE; 
+		ftruncate(fdheap, heapsize); 
+	}
 	heap = mmap(mapHeapAt, HEAPMAX, PROT_READ|PROT_WRITE, MAP_SHARED, fdheap, 0);
 	if (heap ==(void*) -1) { printf("Failed to map heap file %s\n", MAPFILE); die(); }
 	if (!exists) { 
@@ -146,6 +153,9 @@ int openHeap() {
 	return heapsize;
 }
 
+// The root pointer.
+// Normally you'll set it up with (*d()) = palloc(sizeof(World));
+// and access it with a function like World * W() { return (World*)(*d()); }
 void ** d() { return &pallocState()->root; }
 
 
